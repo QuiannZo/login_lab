@@ -1,41 +1,51 @@
 import { useState } from "react";
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../src/context/AuthContext";
+import * as api from "../../src/services/api";
 import { colors, spacing, radius } from "../../src/constants/theme";
 
 /**
  * Pantalla de inicio de sesión.
- * La interfaz ofrece dos métodos de acceso: email/contraseña (auth custom,
- * Parte B) y Google (3rd party, Parte A).
+ * "Entrar" valida contra el backend real (auth custom, Parte B).
  */
 export default function Login() {
   const router = useRouter();
   const { signIn } = useAuth();
 
-  // Estado controlado de los campos. 
-  // TODO: Falta conectar con la lógica de login real.
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Mensaje de error a mostrar bajo el formulario (credenciales, red, etc.).
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // DEMO: inicia una sesión real (se persiste en SecureStore).
+  // Login real: llama al backend, y si responde OK guarda la sesión.
   const handleLogin = async () => {
-    await signIn(
-      {
-        id: "demo-1",
-        name: "Usuario Demo",
-        email: email || "demo@email.com",
-        provider: "custom",
-      },
-      "demo-token"
-    );
+    setError("");
+
+    // Validación en client antes de molestar al servidor.
+    if (!email.trim() || !password) {
+      setError("Completa email y contraseña");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { user, token } = await api.login(email, password);
+      await signIn(user, token); // persiste la sesión; el guard redirige.
+    } catch (e) {
+      // Los errores vienen ya con mensaje legible desde api.ts.
+      setError(e instanceof Error ? e.message : "Error al iniciar sesión");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // El botón de Google reutiliza el mismo flujo de momento.
+  // DEMO
   const handleGoogle = async () => {
     await signIn(
       { id: "demo-g", name: "Google User", email: "user@gmail.com", provider: "google" },
@@ -56,7 +66,6 @@ export default function Login() {
           <Text style={styles.title}>Bienvenido</Text>
           <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
 
-          {/* Formulario de credenciales */}
           <View style={styles.form}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -67,6 +76,7 @@ export default function Login() {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
+              editable={!loading}
             />
 
             <Text style={styles.label}>Contraseña</Text>
@@ -74,14 +84,25 @@ export default function Login() {
               style={styles.input}
               placeholder="••••••••"
               placeholderTextColor={colors.textMuted}
-              secureTextEntry              // oculta la contraseña
+              secureTextEntry
               value={password}
               onChangeText={setPassword}
+              editable={!loading}
             />
 
-            {/* Acción principal: login con email/contraseña */}
-            <Pressable style={styles.primaryBtn} onPress={handleLogin}>
-              <Text style={styles.primaryBtnText}>Entrar</Text>
+            {/* Espacio de error: solo aparece si hay algo que mostrar */}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Pressable
+              style={[styles.primaryBtn, loading && styles.btnDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={styles.primaryBtnText}>Entrar</Text>
+              )}
             </Pressable>
 
             <View style={styles.dividerRow}>
@@ -90,13 +111,12 @@ export default function Login() {
               <View style={styles.line} />
             </View>
 
-            {/* Login con Google (3rd party) */}
-            <Pressable style={styles.googleBtn} onPress={handleGoogle}>
+            <Pressable style={styles.googleBtn} onPress={handleGoogle} disabled={loading}>
               <Text style={styles.googleBtnText}>Continuar con Google</Text>
             </Pressable>
           </View>
 
-          <Pressable onPress={() => router.push("/(auth)/register")}>
+          <Pressable onPress={() => router.push("/(auth)/register")} disabled={loading}>
             <Text style={styles.footer}>
               ¿No tienes cuenta? <Text style={styles.footerLink}>Regístrate</Text>
             </Text>
@@ -107,7 +127,6 @@ export default function Login() {
   );
 }
 
-// Estilos agrupados por zona de la pantalla (contenedor, encabezado, form, footer)
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
@@ -126,10 +145,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md, padding: spacing.md, color: colors.text, fontSize: 15,
   },
+  error: { color: "#ff8a80", fontSize: 14, marginTop: spacing.xs },
   primaryBtn: {
     backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md,
     alignItems: "center", marginTop: spacing.md,
   },
+  btnDisabled: { opacity: 0.6 },
   primaryBtnText: { color: colors.text, fontWeight: "700", fontSize: 16 },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginVertical: spacing.md },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
