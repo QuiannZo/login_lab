@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../../src/context/AuthContext";
 import * as api from "../../src/services/api";
 import { colors, spacing, radius } from "../../src/constants/theme";
+import { signInWithGoogle } from "../../src/services/googleAuth";
 
 /**
  * Pantalla de inicio de sesión.
@@ -45,12 +46,18 @@ export default function Login() {
     }
   };
 
-  // DEMO
+  // login de google.
   const handleGoogle = async () => {
-    await signIn(
-      { id: "demo-g", name: "Google User", email: "user@gmail.com", provider: "google" },
-      "demo-google-token"
-    );
+    setError("");
+    setLoading(true);
+    try {
+      const { user, token } = await signInWithGoogle();
+      await signIn(user, token);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al iniciar sesión con Google");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

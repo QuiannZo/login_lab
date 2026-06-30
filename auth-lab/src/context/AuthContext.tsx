@@ -8,6 +8,7 @@ import {
 } from "react";
 import * as SecureStore from "expo-secure-store";
 import type { User } from "../types/auth";
+import { signOutFromGoogle } from "../services/googleAuth";
 
 interface AuthContextType {
   user: User | null;     // null = sin sesión
@@ -52,6 +53,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   // Borra todo rastro de la sesión.
   const signOut = useCallback(async () => {
+    // Cierra también la sesión del SDK de Google.
+    await signOutFromGoogle();
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_KEY);
     setUser(null);
