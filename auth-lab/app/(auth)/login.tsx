@@ -5,20 +5,43 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useAuth } from "../../src/context/AuthContext";
 import { colors, spacing, radius } from "../../src/constants/theme";
 
-
-// Pantalla de inicio de sesión.
-
+/**
+ * Pantalla de inicio de sesión.
+ * La interfaz ofrece dos métodos de acceso: email/contraseña (auth custom,
+ * Parte B) y Google (3rd party, Parte A).
+ */
 export default function Login() {
   const router = useRouter();
+  const { signIn } = useAuth();
 
-  // Estado controlado de los campos.
+  // Estado controlado de los campos. 
+  // TODO: Falta conectar con la lógica de login real.
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Navegación
-  const goToApp = () => router.push("/(app)/profile");
+  // DEMO: inicia una sesión real (se persiste en SecureStore).
+  const handleLogin = async () => {
+    await signIn(
+      {
+        id: "demo-1",
+        name: "Usuario Demo",
+        email: email || "demo@email.com",
+        provider: "custom",
+      },
+      "demo-token"
+    );
+  };
+
+  // El botón de Google reutiliza el mismo flujo de momento.
+  const handleGoogle = async () => {
+    await signIn(
+      { id: "demo-g", name: "Google User", email: "user@gmail.com", provider: "google" },
+      "demo-google-token"
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -30,10 +53,10 @@ export default function Login() {
           <View style={styles.logo}>
             <Text style={styles.logoText}>🔐</Text>
           </View>
-
           <Text style={styles.title}>Bienvenido</Text>
           <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
 
+          {/* Formulario de credenciales */}
           <View style={styles.form}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -51,12 +74,13 @@ export default function Login() {
               style={styles.input}
               placeholder="••••••••"
               placeholderTextColor={colors.textMuted}
-              secureTextEntry
+              secureTextEntry              // oculta la contraseña
               value={password}
               onChangeText={setPassword}
             />
 
-            <Pressable style={styles.primaryBtn} onPress={goToApp}>
+            {/* Acción principal: login con email/contraseña */}
+            <Pressable style={styles.primaryBtn} onPress={handleLogin}>
               <Text style={styles.primaryBtnText}>Entrar</Text>
             </Pressable>
 
@@ -66,7 +90,8 @@ export default function Login() {
               <View style={styles.line} />
             </View>
 
-            <Pressable style={styles.googleBtn} onPress={goToApp}>
+            {/* Login con Google (3rd party) */}
+            <Pressable style={styles.googleBtn} onPress={handleGoogle}>
               <Text style={styles.googleBtnText}>Continuar con Google</Text>
             </Pressable>
           </View>
@@ -82,8 +107,7 @@ export default function Login() {
   );
 }
 
-// Estilos agrupados por zona (contenedor, encabezado, form, footer).
-
+// Estilos agrupados por zona de la pantalla (contenedor, encabezado, form, footer)
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
